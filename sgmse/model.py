@@ -12,6 +12,8 @@ from sgmse.backbones import BackboneRegistry
 from sgmse.util.inference import evaluate_model
 from sgmse.util.other import pad_spec
 
+from torch.optim.lr_scheduler import LambdaLR
+
 
 class ScoreModel(pl.LightningModule):
     @staticmethod
@@ -60,7 +62,26 @@ class ScoreModel(pl.LightningModule):
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters(), lr=self.lr)
-        return optimizer
+        def lr_foo(step):
+            if step < 10000:
+                # linear warm up lr
+                lr_scale = step / 10000
+            else:
+                lr_scale = 1
+
+            return lr_scale
+
+        scheduler = LambdaLR(
+            optimizer,
+            lr_lambda=lr_foo
+        )
+        return {
+            'optimizer': optimizer, 
+            'lr_scheduler': {
+                'scheduler': scheduler, 
+                'interval': 'step'
+            }
+        }
 
     def optimizer_step(self, *args, **kwargs):
         # Method overridden so that the EMA params are updated after each optimizer step
@@ -119,7 +140,8 @@ class ScoreModel(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         loss = self._step(batch, batch_idx)
-        self.log('train_loss', loss, on_step=True, on_epoch=True)
+        self.log('Step/train_loss', loss, on_step=True, on_epoch=True)
+        self.log('Step/lr', self.trainer.optimizers[0].param_groups[0]['lr'], on_step=True, on_epoch=False)
         return loss
 
     def validation_step(self, batch, batch_idx):

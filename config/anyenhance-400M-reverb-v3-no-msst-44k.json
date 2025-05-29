@@ -1,0 +1,170 @@
+{
+    "dataset": {
+        "type": "seperation",
+        "seperation_ratio": 0.,
+        "seperation_easiness": 0.2,
+        "sample_rate": 44100,
+        "batch_size": 8,
+        "num_workers": 32,
+        "seq_len": 353280, // 512 * 690, ~8s
+        "train": {
+            "speech_list": [
+                ["/mnt/workspace/home/zhangjunan/enhancement-scp/raw/vocal/studio_singing.scp", 1],
+                // ["/mnt/workspace/home/zhangjunan/enhancement-scp/raw/vocal/emilia-3.4.scp", 1],
+                ["/mnt/workspace/home/zhangjunan/enhancement-scp/raw/vocal/fullband_speech.scp", 1],
+                ["/mnt/workspace/home/zhangjunan/enhancement-scp/raw/vocal/bible_tts_speech.scp", 1],
+                // ["/mnt/workspace/home/zhangjunan/enhancement-scp/raw/vocal/netease_msst_sliced.scp", 1],
+            ],
+            "noise_list": [
+                "/mnt/workspace/home/zhangjunan/enhancement-scp/raw/noise/live_performance_noise.scp",
+                "/mnt/workspace/home/zhangjunan/enhancement-scp/raw/noise/noise.scp",
+                "/mnt/workspace/home/zhangjunan/enhancement-scp/raw/noise/noise_TUT-Urban-Acoustic-Scenes.scp",
+            ],
+            "short_rir_list": [
+                "/mnt/workspace/home/zhangjunan/enhancement-scp/raw/rir/short_rir.scp"
+            ],
+            "long_rir_list": [
+                "/mnt/workspace/home/zhangjunan/enhancement-scp/raw/rir/long_rir.scp"
+            ],
+        },
+        "test_noisy_path": "/mnt/workspace/home/zhangjunan/masksr/exp-anyenhance-evaluation/voicefixer_gsr/noisy",
+        "degradation_config": {
+            "silence_ratio": 0.01,
+            "reverb_v3": true,
+            // add noise
+            "p_noise": 0.9,
+            "snr_min": -5,
+            "snr_max": 20,
+            // add voice snr
+            "voice_snr_min": 0,
+            "voice_snr_max": 10,
+            // add reverb
+            // "p_reverb": 0.5,
+            "p_reverb": 0.0,
+            "reverb_time": 1.5,
+            "reverb_fadeout": 0.5,
+            // "p_post_reverb": 0.25,
+            "p_post_reverb": 0.0,
+            // add clipping
+            // "p_clipping": 0.25,
+            "p_clipping": 0.0,
+            // "clipping_min_db": -20,
+            // "clipping_max_db": 0,
+            // apply bandwidth limitation
+            // "p_bandwidth_limitation": 0.5,
+            "p_bandwidth_limitation": 0.0,
+            "bandwidth_limitation_rates": [
+                // 2000,
+                // 4000,
+                8000,
+                16000,
+                // 22050,
+                // 24000,
+                // 32000
+            ],
+            "bandwidth_limitation_methods": [
+                "kaiser_best",
+                "kaiser_fast",
+                "scipy",
+                "polyphase",
+            ],
+            // EQ
+            "p_eq": 0.1,
+            "p_post_eq": 0.0,
+            "eq_min_times": 1,
+            "eq_max_times": 3,
+            "eq_min_length": 0.5,
+            "eq_max_length": 1,
+            "eq_gains": 5,
+            // package loss
+            "p_pl": 0.0,
+            "pl_min_ratio": 0.05,
+            "pl_max_ratio": 0.1,
+            "pl_min_length": 0.05,
+            "pl_max_length": 0.1,
+        }
+    },
+    "model": {
+        "dac_path": "/mnt/workspace/home/zhangjunan/pretrained/dac/weights.pth",
+        "MaskGitTransformer": {
+            "num_tokens": 1024,
+            "seq_len": 690,
+            "dim": 768,
+            "depth": 24,
+            "dim_head": 48,
+            "heads": 16,
+            "ff_mult": 4,
+            "vq_layers": 9,
+            "use_rotary_pos_enc": true,
+        },
+        "AudioEncoder": {
+            "dim": 768,
+            "seq_len": 690,
+            "input_dim": 1025,
+            "n_fft": 2048,
+            "hop_length": 512,
+            "win_length": 2048,
+            "mlp_layers": [
+                1024,
+                768
+            ],
+            "transformer_layers": 24,
+            "transformer_dim": 768,
+            "transformer_dim_head": 48,
+            "transformer_heads": 16,
+            "transformer_ff_mult": 4,
+            "use_rotary_pos_enc": true,
+            "num_transformer_paths": 1,
+            "use_noisy_audio_embed": false,
+        },
+        "AnyEnhance": {
+            "seq_len": 430,
+            "prompt_len": 260,
+            "prompt_bandwidth_limitation_prob": 0.5,
+            "prompt_bandwidth_limitation_rates": [
+                8000,
+                16000,
+                // 22050,
+                24000,
+                // 32000
+            ],
+            "vq_layers": 9,
+            "cond_drop_prob": 0.1,
+            "task_num": 2,
+            "self_critic": true,
+            "critic_v2": true,
+        }
+    },
+    "train": {
+        "device": "cuda",
+        "epochs": -1, // -1 means infinite
+        // "encoder_loss": [
+        //     {
+        //         "type": "semantic",
+        //         "weight": 1.0,
+        //     },
+        //     // {
+        //     //     "type": "f0",
+        //     //     "weight": 1.0,
+        //     // },
+        // ],
+        "optimizer": "adam",
+        "adam": {
+            "betas": [
+                0.9,
+                0.98
+            ],
+            "eps": 1e-09
+        },
+        "scheduler": "linear",
+        "linear": {
+            "num_warmup_steps": 4000,
+            "num_training_steps": 1000000
+        },
+        "learning_rate": 1e-04,
+        "save_every_step": 1000,
+        "keep_every_step": 100000,
+        "eval_every_step": 20000,
+        "keep_ckpts": 1,
+    }
+}

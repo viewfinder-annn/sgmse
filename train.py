@@ -3,7 +3,7 @@ import argparse
 import pytorch_lightning as pl
 
 from argparse import ArgumentParser
-from pytorch_lightning.loggers import WandbLogger
+from pytorch_lightning.loggers import WandbLogger, TensorBoardLogger
 from pytorch_lightning.callbacks import ModelCheckpoint
 from os.path import join
 
@@ -15,6 +15,9 @@ from sgmse.backbones.shared import BackboneRegistry
 from sgmse.data_module import SpecsDataModule
 from sgmse.sdes import SDERegistry
 from sgmse.model import ScoreModel
+
+import os
+os.environ["MASTER_PORT"] = "27711"  # 设置一个空闲的端口
 
 
 def get_argparse_groups(parser):
@@ -76,18 +79,35 @@ if __name__ == '__main__':
      if args.nolog:
           logger = None
      else:
-          logger = WandbLogger(project="sgmse", log_model=True, save_dir="logs", name=args.wandb_name)
-          logger.experiment.log_code(".")
+          # logger = WandbLogger(project="sgmse", log_model=False, save_dir="logs", name=args.wandb_name, offline=True)
+          # logger.experiment.log_code(".")
+          logger = TensorBoardLogger(save_dir=args.log_dir, name=args.wandb_name)
 
      # Set up callbacks for logger
      if logger != None:
-          callbacks = [ModelCheckpoint(dirpath=join(args.log_dir, str(logger.version)), save_last=True, filename='{epoch}-last')]
-          if args.num_eval_files:
-               checkpoint_callback_pesq = ModelCheckpoint(dirpath=join(args.log_dir, str(logger.version)), 
-                    save_top_k=2, monitor="pesq", mode="max", filename='{epoch}-{pesq:.2f}')
-               checkpoint_callback_si_sdr = ModelCheckpoint(dirpath=join(args.log_dir, str(logger.version)), 
-                    save_top_k=2, monitor="si_sdr", mode="max", filename='{epoch}-{si_sdr:.2f}')
-               callbacks += [checkpoint_callback_pesq, checkpoint_callback_si_sdr]
+          # callbacks = [ModelCheckpoint(dirpath=join(args.log_dir, str(logger.version)), save_last=True, filename='{epoch}-last')]
+          # if args.num_eval_files:
+          #      checkpoint_callback_pesq = ModelCheckpoint(dirpath=join(args.log_dir, str(logger.version)), 
+          #           save_top_k=2, monitor="pesq", mode="max", filename='{epoch}-{pesq:.2f}')
+          #      checkpoint_callback_si_sdr = ModelCheckpoint(dirpath=join(args.log_dir, str(logger.version)), 
+          #           save_top_k=2, monitor="si_sdr", mode="max", filename='{epoch}-{si_sdr:.2f}')
+          #      callbacks += [checkpoint_callback_pesq, checkpoint_callback_si_sdr]
+          # 每1000步保存一个模型，且只保留最近的一个
+          checkpoint_callback_1000 = ModelCheckpoint(
+               dirpath=join(args.log_dir, str(logger.version)), 
+               save_top_k=1,  # 保留一个最新的模型
+               every_n_train_steps=1000,  # 每1000步保存一次
+               filename='{epoch}-{step}-last'
+          )
+          
+          # 每100000步强制保存一个模型
+          checkpoint_callback_100000 = ModelCheckpoint(
+               dirpath=join(args.log_dir, str(logger.version)),
+               save_top_k=1,  # 保留一个最新的模型
+               every_n_train_steps=100000,  # 每100000步保存一次
+               filename='{epoch}-{step}-strong-save'
+          )
+          callbacks = [checkpoint_callback_1000, checkpoint_callback_100000]
      else:
           callbacks = None
 
@@ -96,7 +116,8 @@ if __name__ == '__main__':
           **vars(arg_groups['Trainer']),
           strategy="ddp", logger=logger,
           log_every_n_steps=10, num_sanity_val_steps=0,
-          callbacks=callbacks
+          callbacks=callbacks,
+          gradient_clip_val=1.0
      )
 
      # Train model

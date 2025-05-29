@@ -60,6 +60,9 @@ To see all available training options, run `python train.py --help`. Note that t
 **Note:**
 - Our journal preprint [2] uses `--backbone ncsnpp`.
 - For the 48 kHz model [3], use `--backbone ncsnpp_48k --n_fft 1534 --hop_length 384 --spec_factor 0.065 --spec_abs_exponent 0.667 --sigma-min 0.1 --sigma-max 1.0 --theta 2.0`
+
+nohup python train.py --base_dir ./ --backbone ncsnpp_48k --n_fft 1534 --hop_length 384 --spec_factor 0.065 --spec_abs_exponent 0.667 --sigma-min 0.1 --sigma-max 1.0 --theta 2.0 --num_eval_files 0 --config /mnt/workspace/home/zhangjunan/enhancement-baseline/sgmse/config/anyenhance-400M-reverb-v3-no-msst-44k.json >> train.log
+
 - Our Interspeech paper [1] uses `--backbone dcunet`. You need to pass `--n_fft 512` to make it work.
     - Also note that the default parameters for the spectrogram transformation in this repository are slightly different from the ones listed in the first (Interspeech) paper (`--spec_factor 0.15` rather than `--spec_factor 0.333`), but we've found the value in this repository to generally perform better for both models [1] and [2].
 
@@ -69,6 +72,7 @@ To evaluate on a test set, run
 ```bash
 python enhancement.py --test_dir <your_test_dir> --enhanced_dir <your_enhanced_dir> --ckpt <path_to_model_checkpoint>
 ```
+python enhancement.py --test_dir /mnt/workspace/home/zhangjunan/data/voicefixer_gsr_demo --enhanced_dir /mnt/workspace/home/zhangjunan/enhancement-baseline/sgmse/logs/wandb/offline-run-20250214_173326-thq9e50f/6000 --ckpt /mnt/workspace/home/zhangjunan/enhancement-baseline/sgmse/logs/thq9e50f/epoch=0-step=6000-last.ckpt
 
 to generate the enhanced .wav files, and subsequently run
 

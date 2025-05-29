@@ -24,3 +24,8 @@ torchinfo
 torchsde 
 tqdm 
 wandb
+pedalboard
+json5
+resampy
+tensorboard
+tensorboardX
